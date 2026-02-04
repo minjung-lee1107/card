@@ -153,4 +153,5 @@ for _ in range(NUM_ROWS):
 
 df = pd.DataFrame(rows)
 df.to_csv("sample_expense_data.csv", index=False, encoding="utf-8-sig")
+
 print("sample_expense_data.csv 생성 완료")
