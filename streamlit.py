@@ -1,11 +1,14 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from openai import OpenAI
 import re
 import json
 import difflib
 
+# API 키 설정
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # -----데이터 전처리-----
 
@@ -392,11 +395,16 @@ if uploaded_file is not None:
         st.success(f"✅ 전처리 완료! ({prep_report['rows_final']}건)")
 
         ## 매핑 결과 확인용
-        with st.expander("🧩 컬럼 자동 매핑 결과"):
-            st.write(prep_report["column_mapping"])
 
-        with st.expander("🗑️ 삭제된 컬럼"):
-            st.write(prep_report["dropped_columns"])
+        col_map, col_drop = st.columns(2)
+
+        with col_map :
+            with st.expander("🧩 컬럼 자동 매핑 결과"):
+                st.write(prep_report["column_mapping"])
+
+        with col_drop :
+            with st.expander("🗑️ 삭제된 컬럼"):
+                st.write(prep_report["dropped_columns"])
 
         with st.expander("📋 전처리된 데이터 미리보기"):
             st.dataframe(df.head(10))
@@ -464,5 +472,332 @@ else:
 
             **Q. 업로드한 파일은 저장되나요?**  
             A. 아니요! 따로 저장되지는 않아요.
+
+            **Q. 카테고리별 월 누적 지출은 몇 달까지 확인 할 수 있나요?**
+            A. 최대 6달까지 확인 가능합니다!
             """
         )
+
+# 사이드바
+if uploaded_file is not None and 'df' in dir():
+    
+    ## 사이드바 - 필터
+    with st.sidebar:
+        st.header("🔍 필터")
+        
+        ## 기간 필터
+        if 'date' in df.columns:
+            min_date = df['date'].min().date()
+            max_date = df['date'].max().date()
+            
+            date_range = st.date_input(
+                "기간 선택",
+                value=(min_date, max_date),
+                min_value=min_date,
+                max_value=max_date
+            )
+            
+            if len(date_range) == 2:
+                start_date, end_date = date_range
+                df_filtered = df[
+                    (df['date'].dt.date >= start_date) & 
+                    (df['date'].dt.date <= end_date)
+                ]
+            else:
+                df_filtered = df.copy()
+        else:
+            df_filtered = df.copy()
+        
+        ## 카테고리 필터
+        if 'category' in df.columns:
+            categories = df['category'].unique().tolist()
+            selected_categories = st.multiselect(
+                "카테고리 선택",
+                options=categories,
+                default=categories
+            )
+            df_filtered = df_filtered[df_filtered['category'].isin(selected_categories)]
+    
+
+    # 핵심 지표 카드
+    st.markdown("### 📊 핵심 지표")
+    col1, col2, col3, col4 = st.columns(4)
+
+    total_expense = df_filtered['amount'].sum()
+
+    # 월평균 지출 계산
+    monthly_sum = (
+        df_filtered
+        .groupby(df_filtered['date'].dt.to_period('M'))['amount']
+        .sum()
+    )
+    monthly_avg_expense = monthly_sum.mean()
+
+    max_expense = df_filtered['amount'].max()
+    transaction_count = len(df_filtered)
+
+    col1.metric("💵 총 지출", f"{total_expense:,.0f}원")
+    col2.metric("📆 월평균 지출", f"{monthly_avg_expense:,.0f}원")
+    col3.metric("📈 최대 단일 지출", f"{max_expense:,.0f}원")
+    col4.metric("🧾 거래 건수", f"{transaction_count}건")
+
+    
+    st.markdown("---")
+    
+
+    # 차트 영역
+    
+    ## 도넛차트
+    col_left, col_right = st.columns(2)
+    
+    with col_left:
+        st.markdown("### 🥧 카테고리별 지출")
+        if 'category' in df_filtered.columns:
+            category_sum = df_filtered.groupby('category')['amount'].sum().reset_index()
+            fig_pie = px.pie(
+                category_sum, 
+                values='amount', 
+                names='category',
+                hole=0.4,
+                color_discrete_sequence=px.colors.qualitative.Set3
+            )
+            fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+            st.plotly_chart(fig_pie, use_container_width=True)
+    
+
+    ## 바 차트
+    with col_right:
+        st.markdown("### 📊 카테고리별 월 누적 지출")
+
+        if {'category', 'year_month'}.issubset(df_filtered.columns):
+            category_month_sum = (
+                df_filtered
+                .groupby(['category', 'year_month'])['amount']
+                .sum()
+                .reset_index()
+            )
+
+            recent_months = sorted(df_filtered['year_month'].unique())[-6:]
+            category_month_sum = category_month_sum[
+                category_month_sum['year_month'].isin(recent_months)
+            ]
+
+
+            fig_bar = px.bar(
+                category_month_sum,
+                x='category',
+                y='amount',
+                color='year_month'
+            )
+
+            fig_bar.update_layout(
+                xaxis_title="카테고리",
+                yaxis_title="지출 금액 (원)",
+                barmode='stack',
+                legend_title="월"
+            )
+
+            st.plotly_chart(fig_bar, use_container_width=True)
+    
+
+
+    ## 라인차트
+    tab_month, tab_weekday, tab_week, tab_day = st.tabs(
+        ["월별", "요일별", "주별", "일별"]
+    )
+
+    def draw_line(df, x_col, x_title):
+        summary = df.groupby(x_col)['amount'].sum().reset_index()
+        fig = px.line(summary, x=x_col, y='amount', markers=True)
+        fig.update_layout(
+            xaxis_title=x_title,
+            yaxis_title="지출 금액 (원)"
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+
+    ### 월별
+    with tab_month:
+        st.markdown("### 📈 월별 지출 추이")
+
+        df_m = df_filtered.copy()
+        df_m['year_month'] = df_m['date'].dt.strftime('%Y-%m')
+
+        draw_line(df_m, 'year_month', '월')
+
+
+    ### 요일별 (일~토)
+    with tab_weekday:
+        st.markdown("### 📈 요일별 지출 추이")
+
+        order = ["일", "월", "화", "수", "목", "금", "토"]
+
+        df_wd = df_filtered.copy()
+        df_wd['weekday'] = df_wd['date'].dt.dayofweek.map(
+            lambda x: order[(x + 1) % 7]
+        )
+
+        df_wd['weekday'] = pd.Categorical(
+            df_wd['weekday'],
+            categories=order,
+            ordered=True
+        )
+
+        draw_line(df_wd, 'weekday', '요일')
+
+
+    ### 주별 (1~5주)
+    with tab_week:
+        st.markdown("### 📈 주별 지출 추이")
+
+        df_w = df_filtered.copy()
+        df_w['week'] = ((df_w['date'].dt.day - 1) // 7) + 1
+        df_w['week'] = df_w['week'].clip(1, 5)
+        df_w['week_label'] = df_w['week'].astype(str) + "주"
+
+        draw_line(df_w, 'week_label', '주')
+
+
+    ### 일별 (1~31일)
+    with tab_day:
+        st.markdown("### 🔵 일별 지출 산점도")
+
+        df_d = df_filtered.copy()
+
+        df_d["date"] = pd.to_datetime(df_d["date"], errors="coerce")
+        df_d = df_d.dropna(subset=["date"])
+
+        df_d["ym"] = df_d["date"].dt.to_period("M").astype(str)
+        ym_list = sorted(df_d["ym"].unique())
+        selected_ym = st.selectbox("월 선택", ym_list, index=len(ym_list) - 1)
+
+        df_m = df_d[df_d["ym"] == selected_ym].copy()
+
+        df_m["date_only"] = df_m["date"].dt.normalize()
+
+        daily = (
+            df_m.groupby("date_only", as_index=False)["amount"]
+            .sum()
+            .rename(columns={"date_only": "date"})
+        )
+
+        ### 산점도
+        fig = px.scatter(
+            daily,
+            x="date",
+            y="amount",
+            title=f"{selected_ym} 일별 지출",
+            labels={"date": "날짜", "amount": "지출 금액(원)"}
+        )
+        fig.update_traces(marker=dict(size=7, opacity=0.6))
+        st.plotly_chart(fig, use_container_width=True)
+
+
+    ### 슬로프 차트
+    st.markdown("### 🔀 카테고리별 두 달 비교")
+
+    months = sorted(df_filtered['year_month'].dropna().astype(str).unique())
+    if len(months) < 2:
+        st.info("비교하려면 최소 2달의 데이터가 필요해요.")
+    else:
+        ### 월선택
+        left, right = st.columns([1.25, 1])
+
+        with left:
+            c1, c2 = st.columns(2)
+            with c1:
+                month1 = st.selectbox("월1", months, index=max(0, len(months) - 2), key="compare_m1")
+            with c2:
+                month2 = st.selectbox("월2", months, index=max(0, len(months) - 1), key="compare_m2")
+
+        if month1 == month2:
+            st.warning("월1과 월2는 서로 다르게 선택해주세요.🥹")
+        else:
+            base = df_filtered[df_filtered['year_month'].astype(str).isin([month1, month2])].copy()
+            base = base.dropna(subset=['category'])
+
+            pivot = (
+                base.groupby(['category', 'year_month'])['amount']
+                .sum()
+                .reset_index()
+                .pivot(index='category', columns='year_month', values='amount')
+                .fillna(0)
+            )
+
+            for m in [month1, month2]:
+                if m not in pivot.columns:
+                    pivot[m] = 0
+
+            pivot = pivot[[month1, month2]]
+            pivot['diff'] = pivot[month2] - pivot[month1]
+            pivot = pivot.sort_values('diff', ascending=False)
+
+            long_df = (
+                pivot[[month1, month2]]
+                .reset_index()
+                .melt(id_vars='category', var_name='month', value_name='amount')
+            )
+
+            ### 슬로프 차트
+            with left:
+                st.markdown(f"#### 📉 {month1} → {month2}")
+
+                fig = px.line(
+                    long_df,
+                    x='category',
+                    y='amount', 
+                    color='month',
+                    line_group='category',
+                    markers=True
+                )
+                fig.update_layout(
+                    xaxis_title="카테고리",
+                    yaxis_title="지출 금액 (원)",
+                    legend_title="월"
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+            ### 변화 요약
+            with right:
+                st.markdown("#### 🧾 두달간 변화 요약")
+
+                top_n = 10
+                show_df = pivot.reset_index().copy()
+
+
+                def badge(diff: float) -> str:
+                    if diff > 0:
+                        return f"<span style='color:#d32f2f; font-weight:700;'>▲ {diff:+,}원</span>"
+                    elif diff < 0:
+                        return f"<span style='color:#2e7d32; font-weight:700;'>▼ {diff:+,}원</span>"
+                    else:
+                        return f"<span style='color:#616161; font-weight:700;'>■ {diff:+,}원</span>"
+
+                show_df = show_df.sort_values('diff', ascending=False).head(top_n)
+
+                for i, row in show_df.iterrows():
+                    cat = row['category']
+                    m1v = int(row[month1])
+                    m2v = int(row[month2])
+                    diff = int(row['diff'])
+
+                    line_col, detail_col = st.columns([0.78, 0.22])
+
+                    with line_col:
+                        st.markdown(
+                            f"**{cat}**&nbsp;&nbsp;{badge(diff)}",
+                            unsafe_allow_html=True
+                        )
+
+                    with detail_col:
+
+                        try:
+                            with st.popover("상세", use_container_width=True):
+                                st.write(f"- {month1} 사용금액: **{m1v:,.0f}원**")
+                                st.write(f"- {month2} 사용금액: **{m2v:,.0f}원**")
+                                st.write(f"- 차이: **{diff:+,.0f}원**")
+                        except Exception:
+                            with st.expander("상세"):
+                                st.write(f"- {month1} 사용금액: **{m1v:,.0f}원**")
+                                st.write(f"- {month2} 사용금액: **{m2v:,.0f}원**")
+                                st.write(f"- 차이: **{diff:+,.0f}원**")
