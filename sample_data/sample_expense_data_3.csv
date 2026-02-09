@@ -1,4 +1,4 @@
-﻿date,amount,description,payment_method,is_fixed,installment_type,installment_months
+﻿날짜,결제금액,가맹점,결제방식,고정비여부,할부,할부개월수
 2025-08-21,69570,치과,현금,False,일시불,
 2025-01-01,80270,영풍문고,현금,True,일시불,
 2025-03-01,205250,월세이체,카드,True,일시불,
