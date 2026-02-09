@@ -482,43 +482,66 @@ else:
 
 # 사이드바
 if uploaded_file is not None and 'df' in dir():
-    
-    ## 사이드바 - 필터
+
     with st.sidebar:
         st.header("🔍 필터")
-        
+
         ## 기간 필터
-        if 'date' in df.columns:
-            min_date = df['date'].min().date()
-            max_date = df['date'].max().date()
-            
+        df_filtered = df.copy()
+
+        if 'date' in df_filtered.columns:
+            min_date = df_filtered['date'].min().date()
+            max_date = df_filtered['date'].max().date()
+
             date_range = st.date_input(
                 "기간 선택",
                 value=(min_date, max_date),
                 min_value=min_date,
                 max_value=max_date
             )
-            
-            if len(date_range) == 2:
+
+            if isinstance(date_range, (list, tuple)) and len(date_range) == 2:
                 start_date, end_date = date_range
-                df_filtered = df[
-                    (df['date'].dt.date >= start_date) & 
-                    (df['date'].dt.date <= end_date)
+                df_filtered = df_filtered[
+                    (df_filtered['date'].dt.date >= start_date) &
+                    (df_filtered['date'].dt.date <= end_date)
                 ]
-            else:
-                df_filtered = df.copy()
-        else:
-            df_filtered = df.copy()
-        
+
         ## 카테고리 필터
-        if 'category' in df.columns:
-            categories = df['category'].unique().tolist()
+        if 'category' in df_filtered.columns:
+            categories = sorted(df_filtered['category'].dropna().unique().tolist())
             selected_categories = st.multiselect(
                 "카테고리 선택",
                 options=categories,
                 default=categories
             )
-            df_filtered = df_filtered[df_filtered['category'].isin(selected_categories)]
+            if selected_categories:
+                df_filtered = df_filtered[df_filtered['category'].isin(selected_categories)]
+            else:
+                df_filtered = df_filtered.iloc[0:0]
+
+        ## 일시불/할부 필터
+        if 'installment_type' in df_filtered.columns:
+            pay_types = sorted(
+                df_filtered['installment_type']
+                .dropna()
+                .astype(str)
+                .unique()
+                .tolist()
+            )
+
+            selected_pay_types = st.multiselect(
+                "결제 방식 선택 (일시불/할부)",
+                options=pay_types,
+                default=pay_types
+            )
+
+            if selected_pay_types:
+                df_filtered = df_filtered[
+                    df_filtered['installment_type'].astype(str).isin(selected_pay_types)
+                ]
+            else:
+                df_filtered = df_filtered.iloc[0:0]
     
 
     # 핵심 지표 카드
