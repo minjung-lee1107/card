@@ -72,7 +72,7 @@ MERCHANT_RULES = {
 
 PAYMENT_METHODS = ["카드", "현금"]
 
-FIXED_CATEGORIES = ["주거/통신", "구독", "교육", "금융/보험"]
+FIXED_CATEGORIES = ["주거/통신", "구독", "금융/보험"]
 
 INSTALLMENT_CATEGORIES = ["쇼핑", "교육", "의료/건강", "금융/보험"]
 INSTALLMENT_MONTHS_OPTIONS = list(range(2, 13))
