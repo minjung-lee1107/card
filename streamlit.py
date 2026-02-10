@@ -542,7 +542,29 @@ if uploaded_file is not None and 'df' in dir():
                 ]
             else:
                 df_filtered = df_filtered.iloc[0:0]
-    
+
+        ## 금액 슬라이드 필터
+        if 'amount' in df_filtered.columns:
+            min_amt = int(df_filtered['amount'].min())
+            max_amt = int(df_filtered['amount'].max())
+
+            selected_range = st.slider(
+                "결제 금액 범위",
+                min_value=min_amt,
+                max_value=max_amt,
+                value=(min_amt, max_amt),
+                step=1000
+            )
+
+            st.markdown(
+                f"선택 범위 : **{selected_range[0]:,}원 ~ {selected_range[1]:,}원**"
+            )
+
+
+            df_filtered = df_filtered[
+                df_filtered['amount'].between(selected_range[0], selected_range[1])
+            ]
+
 
     # 핵심 지표 카드
     st.markdown("### 📊 핵심 지표")
@@ -749,9 +771,6 @@ if uploaded_file is not None and 'df' in dir():
 
         daily["day_type"] = daily["is_weekend"].map(
             {True: "주말", False: "평일"})
-
-        ### 평균선 값
-        avg_amount = daily["amount"].mean() if len(daily) else 0
 
         ### 최고지출일
         max_idx = daily["amount"].idxmax() if len(daily) else None
@@ -983,3 +1002,125 @@ if uploaded_file is not None and 'df' in dir():
                                 st.write(f"- {month1} 사용금액: **{m1v:,.0f}원**")
                                 st.write(f"- {month2} 사용금액: **{m2v:,.0f}원**")
                                 st.write(f"- 차이: **{diff:+,.0f}원**")
+
+
+# 데이터 요약 통계
+def generate_expense_summary(df):
+    """지출 데이터 요약 통계 생성 + 기간(개월) + 월평균 포함"""
+    summary = {
+        'total': df['amount'].sum(),
+        'average': df['amount'].mean(),
+        'max': df['amount'].max(),
+        'min': df['amount'].min(),
+        'count': len(df),
+    }
+
+    ## 기간(개월 수) 계산: df_filtered 기준으로 계산됨
+    if 'date' in df.columns:
+    
+        months_count = int(df['date'].dt.to_period('M').nunique())
+        months_count = max(months_count, 1)
+
+        summary['months_count'] = months_count
+        summary['period_start'] = str(df['date'].min().date())
+        summary['period_end'] = str(df['date'].max().date())
+
+        ### 월평균 총지출
+        summary['monthly_avg_total'] = summary['total'] / months_count
+    else:
+        summary['months_count'] = 1
+        summary['period_start'] = ""
+        summary['period_end'] = ""
+        summary['monthly_avg_total'] = summary['total']
+
+    ## 카테고리별 통계 + 월평균(카테고리)
+    if 'category' in df.columns:
+        category_stats = df.groupby('category')['amount'].agg(['sum', 'count']).reset_index()
+        category_stats['percentage'] = (category_stats['sum'] / summary['total'] * 100).round(1)
+
+        ### 카테고리 월평균 추가
+        category_stats['monthly_avg'] = (category_stats['sum'] / summary['months_count']).round(0)
+
+        summary['category_breakdown'] = category_stats.to_dict('records')
+
+    ## 월별 통계
+    if 'year_month' in df.columns:
+        monthly_stats = df.groupby('year_month')['amount'].sum().to_dict()
+        summary['monthly'] = monthly_stats
+
+    return summary
+
+
+# OpenAI 클라이언트 생성
+# AI 인사이트 함수
+def get_ai_insights(summary_data):
+    """AI 인사이트 생성"""
+
+    ## 기간 정보 (없으면 1개월)
+    months = summary_data.get("months_count", 1)
+    monthly_avg_total = summary_data.get(
+        "monthly_avg_total",
+        summary_data["total"] / max(months, 1)
+    )
+
+    ## 카테고리 breakdown 문자열 생성 (총액 + 월평균)
+    category_text = ""
+    if "category_breakdown" in summary_data:
+        for item in summary_data["category_breakdown"]:
+            monthly_avg = item.get(
+                "monthly_avg",
+                item["sum"] / max(months, 1)
+            )
+
+            category_text += (
+                f"- {item['category']}: "
+                f"총 {item['sum']:,.0f}원 ({item['percentage']}%), "
+                f"월평균 {monthly_avg:,.0f}원\n"
+            )
+
+    prompt = f"""
+    
+당신은 개인 재무 전문가입니다. 아래 지출 데이터를 분석하고 실용적인 인사이트와 조언을 제공해주세요.
+
+⚠️ 중요 규칙 (반드시 지키세요)
+- 이 데이터는 **1개월치가 아니라 총 {months}개월치 데이터**입니다.
+- "다음 달 권장 예산"은 반드시 **월평균(총액 ÷ {months}) 기준**으로 계산하세요.
+- 절대 {months}개월치 총액을 다음 달 1개월 예산으로 제시하지 마세요.
+
+[지출 요약 - {months}개월 기준]
+- 총 지출: {summary_data['total']:,.0f}원
+- 월평균 총 지출: {monthly_avg_total:,.0f}원
+- 최대 단일 지출: {summary_data['max']:,.0f}원
+- 거래 건수: {summary_data['count']}건
+
+[카테고리별 지출 (총액 + 월평균)]
+{category_text}
+
+[분석 요청]
+1. 지출 패턴에서 주목할 점 2~3가지
+2. 개선이 필요한 소비 부문과 **월 기준 예상 절약 금액**
+3. 다음 달 권장 예산 (카테고리별, 월 기준)
+4. 예상 절약 금액대로 저축하면 모을 수 있는 금액 (적금 연 이자 3%로 가정한 3,6,12개월 단위의 정확한 금액 제시)
+
+친근하고 이해하기 쉬운 말투로 작성해주세요.
+가독성 좋게 작성해주세요.
+구체적인 수치를 포함해서 실행 가능한 조언을 해주세요.
+"""
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "당신은 친절한 개인 재무 전문가입니다. 모든 예산과 절약 금액은 반드시 월 기준으로 계산합니다."
+                },
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=1000,
+            temperature=0.3
+        )
+        return response.choices[0].message.content
+
+    except Exception as e:
+        return f"AI 분석 중 오류가 발생했습니다: {e}"
