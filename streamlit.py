@@ -425,11 +425,11 @@ else:
         
     with c1: 
         st.markdown("## 🧹 자동 전처리") 
-        st.caption("거래일/금액/내역 컬럼을 자동 인식하고 표준 포맷으로 정리해요.") 
+        st.caption("거래일/금액/내역 컬럼을 자동 인식하고 정리해요.") 
         
     with c2: 
         st.markdown("## 🧩 매핑 결과 리포트") 
-        st.caption("원본 컬럼이 어떤 필드로 매핑됐는지 투명하게 보여줘요.") 
+        st.caption("원본 컬럼이 어떤 필드로 매핑됐는지 보여줘요.") 
         
     with c3: 
         st.markdown("## 📊 분석 & 인사이트") 
