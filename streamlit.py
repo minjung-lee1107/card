@@ -340,38 +340,61 @@ st.set_page_config(
 
 st.title("💰 개인 지출 분석")
 
-# 사이드바 - 파일 업로드
+# Session State 초기화
+if 'df' not in st.session_state:
+    st.session_state.df = None
+if "df_processed" not in st.session_state:
+    st.session_state.df_processed = None
+if "prep_report" not in st.session_state:
+    st.session_state.prep_report = None
+if 'file_uploaded' not in st.session_state:
+    st.session_state.file_uploaded = False
+
+# 사이드바 - 파일 업로드 (기존 UI 유지)
 with st.sidebar:
     st.header("📁 데이터 업로드")
-    uploaded_file = st.file_uploader(
-        "CSV 또는 Excel 파일을 업로드하세요",
-        type=['csv', 'xlsx', 'xls']
-    )
+    uploaded_file = st.file_uploader("파일 업로드", type=['csv', 'xlsx', 'xls'])
 
-# 메인 영역
+# 파일 업로드 처리
 if uploaded_file is not None:
+    ## 새 파일이 업로드되었을 때만 처리
+    if (not st.session_state.file_uploaded) or (st.session_state.get('file_name') != uploaded_file.name):
+        try:
+            if uploaded_file.name.endswith('.csv'):
+                try:
+                    df_raw = pd.read_csv(uploaded_file, encoding='utf-8')
+                except UnicodeDecodeError:
+                    uploaded_file.seek(0)
+                    df_raw = pd.read_csv(uploaded_file, encoding='cp949')
+            else:
+                df_raw = pd.read_excel(uploaded_file)
+
+            ### Session State에 저장 (원본)
+            st.session_state.df = df_raw
+            st.session_state.file_uploaded = True
+            st.session_state.file_name = uploaded_file.name
+
+            st.session_state.df_processed = None
+            st.session_state.prep_report = None
+
+        except Exception as e:
+            st.error(f"오류: {e}")
+
+
+if st.session_state.df is not None:
     try:
-        ## 파일 읽기
-        if uploaded_file.name.endswith('.csv'):
-            try:
-                df_raw = pd.read_csv(uploaded_file, encoding='utf-8')
-            except UnicodeDecodeError:
-                uploaded_file.seek(0)
-                df_raw = pd.read_csv(uploaded_file, encoding='cp949')
-        else:
-            df_raw = pd.read_excel(uploaded_file)
+        ## 전처리 1회만 실행
+        if st.session_state.df_processed is None:
+            df, prep_report = preprocess_any_expense_df(
+                st.session_state.df,
+                api_key=st.secrets["OPENAI_API_KEY"]
+            )
 
-        ## 전처리 실행
-        df, prep_report = preprocess_any_expense_df(
-            df_raw,
-            api_key=st.secrets["OPENAI_API_KEY"]
-        )
-
-        # 전처리 실패시 사용자에게 안내
-        if df is None:
-            st.error("❌ 필수 컬럼이 없어 전처리를 진행할 수 없어요.")
-            st.markdown(
-                f"""
+            ## 전처리 실패 안내
+            if df is None:
+                st.error("❌ 필수 컬럼이 없어 전처리를 진행할 수 없어요.")
+                st.markdown(
+                    f"""
         **누락된 필수 컬럼:** `{', '.join(prep_report['missing_columns'])}`
 
         👉 파일에 **거래일 / 금액 / 내역**에 해당하는 정보가 있는지 확인해주세요.
@@ -381,41 +404,43 @@ if uploaded_file is not None:
         - 이용일 → `거래일`, `결제일`, `승인일자`
         - 거래금액 → `금액`, `사용금액`, `결제금액`
         - 이용하신곳 → `거래내역`, `사용내역`, `가맹점명`
-
-        처럼 되어 있어도 자동으로 인식돼요 🙂  
-        컬럼명을 수정한 후 다시 시도해주세요.
         """
-            )
+                )
 
-            with st.expander("🔎 자동 매핑 결과 보기"):
-                st.write(prep_report["column_mapping"])
+                with st.expander("🔎 자동 매핑 결과 보기"):
+                    st.write(prep_report["column_mapping"])
+                st.stop()
 
-            st.stop()
+            ## 성공이면 session_state에 저장
+            st.session_state.df_processed = df
+            st.session_state.prep_report = prep_report
 
+            st.success(f"✅ 전처리 완료! ({prep_report['rows_final']}건)")
 
-        st.success(f"✅ 전처리 완료! ({prep_report['rows_final']}건)")
+        ## 이미 전처리 했으면 저장된 것 사용
+        df = st.session_state.df_processed
+        prep_report = st.session_state.prep_report
 
-        ## 매핑 결과 확인용
 
         col_map, col_drop = st.columns(2)
 
-        with col_map :
+        with col_map:
             with st.expander("🧩 컬럼 자동 매핑 결과"):
                 st.write(prep_report["column_mapping"])
 
-        with col_drop :
+        with col_drop:
             with st.expander("🗑️ 삭제된 컬럼"):
                 st.write(prep_report["dropped_columns"])
 
         with st.expander("📋 전처리된 데이터 미리보기"):
             st.dataframe(df.head(10))
 
-    except Exception as e:
-        st.error(f"파일 처리 오류: {e}")
-    
+    except Exception:
+        st.stop()
+
 else:
     st.info("👈 왼쪽 사이드바에서 파일을 업로드해주세요.")
-    
+ 
     st.markdown(" ")
     st.markdown(" ")
     st.markdown(" ")
@@ -481,7 +506,7 @@ else:
         )
 
 # 사이드바
-if uploaded_file is not None and 'df' in dir():
+if st.session_state.get("df") is not None and 'df' in dir():
 
     with st.sidebar:
         st.header("🔍 필터")
@@ -1124,3 +1149,23 @@ def get_ai_insights(summary_data):
 
     except Exception as e:
         return f"AI 분석 중 오류가 발생했습니다: {e}"
+
+
+# Streamlit UI에서 사용  
+if uploaded_file is not None:
+
+    st.markdown("---")
+    st.markdown("### 🤖 AI 분석 인사이트")
+
+    if st.button("🔍 AI 분석 시작", type="primary"):
+        with st.spinner("AI가 지출 패턴을 분석하고 있습니다..."):
+            summary = generate_expense_summary(df_filtered)
+            insights = get_ai_insights(summary)
+
+            st.markdown(insights)
+            st.session_state['last_insights'] = insights
+
+    ## 이전 분석 결과 표시
+    if 'last_insights' in st.session_state:
+        with st.expander("📝 이전 분석 결과 보기"):
+            st.markdown(st.session_state['last_insights'])
