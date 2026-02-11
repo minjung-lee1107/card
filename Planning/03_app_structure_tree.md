@@ -51,19 +51,37 @@ streamlit.py
 │        ├─ category 표준화(목록 외 → 기타)
 │        └─ 파생 컬럼 생성(month, year_month) + 컬럼 정렬 + report 반환
 │
-├─ 🎨 Streamlit UI (초기 화면/업로드)
+├─ 🎨 Streamlit 초기 화면/업로드
 │  ├─ st.set_page_config
 │  ├─ st.title
+│  │
+│  ├─ Session State 초기화
+│  │  ├─ st.session_state.df (원본 df_raw)
+│  │  ├─ st.session_state.df_processed (전처리 완료 df)
+│  │  ├─ st.session_state.prep_report (전처리 리포트)
+│  │  ├─st.session_state.file_uploaded (업로드 여부 플래그)
+│  │  └─st.session_state.file_name (업로드 파일명)
+│  │
 │  ├─ Sidebar: 파일 업로드
 │  │  └─ st.file_uploader (csv/xlsx/xls)
+│  │
 │  └─ uploaded_file 처리
+│     ├─ 새 파일 감지
+│     │  └─ (not file_uploaded) OR (file_name != uploaded_file.name)
 │     ├─ 파일 읽기
 │     │  ├─ csv: utf-8 → 실패 시 cp949
 │     │  └─ excel: read_excel
-│     ├─ preprocess_any_expense_df 호출
-│     ├─ 전처리 실패 안내 + 매핑 결과(expander) + st.stop
-│     ├─ 전처리 성공 안내 + 매핑/삭제 컬럼/미리보기(expanders)
-│     └─ (업로드 전) 안내/사용방법/FAQ 탭 구성
+│     ├─ Session state 저장
+│     │  ├─ df_raw → st.session_state.df
+│     │  ├─ file_uploaded/file_name 갱신
+│     │  └─df_processed/prep_report = None (전처리 캐시 리셋)
+│     │ 
+│     └─ 전처리 실행은 “1회만”
+│       ├─ if st.session_state.df_processed is None:
+│       │ ├─ preprocess_any_expense_df(st.session_state.df)
+│       │ ├─ 실패(df is None) 안내 + 매핑 결과(expander) + st.stop
+│       │ └─ 성공 시 df_processed/prep_report 저장 + success
+│       └─ else: 저장된 df_processed/prep_report 재사용
 │
 ├─ 🎛️ Sidebar: 필터 (업로드 이후)
 │  ├─ 기간 필터 (st.date_input)
