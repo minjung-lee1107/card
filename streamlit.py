@@ -1174,7 +1174,174 @@ def get_ai_insights(summary_data):
         return f"AI 분석 중 오류가 발생했습니다: {e}"
 
 
-# Streamlit UI에서 사용  
+# 월간 리포트
+def generate_monthly_report(df, insights=None):
+    """월간 리포트 마크다운 생성"""
+
+    total_spend = df["amount"].sum()
+    max_spend = df["amount"].max()
+    count_tx = df["amount"].count()
+
+    if "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+
+        monthly_avg_total = (
+            df.dropna(subset=["date"])
+            .assign(month=df["date"].dt.to_period("M"))
+            .groupby("month")["amount"]
+            .sum()
+            .mean()
+        )
+    else:
+        ### date 컬럼이 없으면 전체 평균으로 대체
+        monthly_avg_total = df["amount"].mean()
+    
+    report = f"""
+
+#📊 월간 지출 리포트
+
+생성일: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}
+
+---
+
+## 📈 지출 요약
+
+| 항목 | 금액 |
+|------|------|
+| 총 지출 | {total_spend:,.0f}원 |
+| 월평균 지출 | {monthly_avg_total:,.0f}원 |
+| 최대 단일 지출 | {max_spend:,.0f}원 |
+| 거래 건수 | {count_tx}건 |
+
+---
+
+## 🏷️ 카테고리별 지출
+
+"""
+    
+    if 'category' in df.columns:
+        category_sum = df.groupby('category')['amount'].sum().sort_values(ascending=False)
+        total = category_sum.sum()               
+        
+        report += "| 카테고리 | 금액 | 비율 |\n"
+        report += "|----------|------|------|\n"
+        for cat, amount in category_sum.items():
+            percentage = (amount / total * 100)
+            report += f"| {cat} | {amount:,.0f}원 | {percentage:.1f}% |\n"
+    
+        desc_col = None
+        for c in ["description", "content", "memo", "note", "item", "place"]:
+            if c in df.columns:
+                desc_col = c
+                break
+
+
+        ### 고정비 리스트
+        report += "\n---\n\n## 🧾 고정비 리스트\n\n"
+
+        fixed_col = "is_fixed"
+
+        fixed_df = df[df[fixed_col] == True].copy()
+
+        if fixed_df.empty:
+            report += "고정비로 표시된 내역이 없어요. (`is_fixed`가 True인 행)\n"
+        else:
+            fixed_df["date"] = pd.to_datetime(fixed_df["date"], errors="coerce")
+
+            group_keys = ["category"]
+            if desc_col:
+                group_keys.append(desc_col)
+
+            fixed_summary = (
+                fixed_df.groupby(group_keys, dropna=False)["amount"]
+                .agg(total="sum", count="size", avg="mean")
+                .reset_index()
+                .sort_values("total", ascending=False)
+            )
+
+            fixed_total = fixed_df["amount"].sum()
+            report += f"- 고정비 총합: **{fixed_total:,.0f}원**\n\n"
+
+            report += "| 카테고리 | 항목 | 월 합계 | 발생 횟수 | 1회 평균 금액 |\n"
+            report += "|----------|------|---------|-----------|----------------|\n"
+
+            for _, row in fixed_summary.iterrows():
+                cat = row["category"]
+                item = row[desc_col] if desc_col else "-"
+                report += (
+                    f"| {cat} | {item} | "
+                    f"{row['total']:,.0f}원 | "
+                    f"{int(row['count'])}회 | "
+                    f"{row['avg']:,.0f}원 |\n"
+                )
+
+        ### 지출 집중일
+        report += "\n---\n\n## 🔥 지출 집중일\n\n"
+
+        tmp = df.copy()
+        tmp["date"] = pd.to_datetime(tmp["date"], errors="coerce")
+        tmp = tmp.dropna(subset=["date"]).copy()
+
+        if tmp.empty:
+            report += "지출 집중일을 계산할 수 있는 유효한 날짜가 없어요.\n"
+        else:
+            tmp["day"] = tmp["date"].dt.date
+            daily_sum = tmp.groupby("day")["amount"].sum().sort_values(ascending=False)
+
+            focus_day = daily_sum.index[0]
+            focus_amt = float(daily_sum.iloc[0])
+
+            report += f"- 가장 많이 지출한 날: **{focus_day}**\n"
+            report += f"- 해당일 총 지출: **{focus_amt:,.0f}원**\n\n"
+
+            day_df = tmp[tmp["day"] == focus_day].copy()
+
+            cols_day = ["date", "category"]
+            if desc_col:
+                cols_day.insert(2, desc_col)
+            cols_day.append("amount")
+
+            day_df = day_df.sort_values("amount", ascending=False).head(5)
+
+            report += "### 📌 해당일 지출 상세 (상위 5건)\n\n"
+            report += "| 시간 | 카테고리 | 내용 | 금액 |\n"
+            report += "|------|----------|------|------|\n"
+
+            for _, row in day_df[cols_day].iterrows():
+                time_str = row["date"].strftime("%H:%M")
+                cat = row["category"]
+                desc_value = row[desc_col] if desc_col else "-"
+                report += f"| {time_str} | {cat} | {desc_value} | {row['amount']:,.0f}원 |\n"
+
+
+    report += "\n---\n\n## 💡 상위 5개 지출\n\n"
+    
+    desc_col = None
+    for c in ["description", "content", "memo", "note", "item", "place"]:
+        if c in df.columns:
+            desc_col = c
+            break
+
+    cols = ["date", "category", "amount"]
+    if desc_col:
+        cols.insert(2, desc_col)  
+
+    top5 = df.nlargest(5, "amount")[cols]
+
+    report += "| 날짜 | 카테고리 | 내용 | 금액 |\n"
+    report += "|------|----------|------|------|\n"
+    for _, row in top5.iterrows():
+        date_str = row['date'].strftime('%Y-%m-%d') if pd.notna(row['date']) else '-'
+        desc_value = row[desc_col] if desc_col else "-"
+        report += f"| {date_str} | {row['category']} | {desc_value} | {row['amount']:,.0f}원 |\n"
+    
+    if insights:
+        report += f"\n---\n\n## 🤖 AI 인사이트\n\n{insights}\n"
+    
+    return report
+
+
+# Streamlit UI에서 사용
 if uploaded_file is not None:
 
     st.markdown("---")
@@ -1192,3 +1359,20 @@ if uploaded_file is not None:
     if 'last_insights' in st.session_state:
         with st.expander("📝 이전 분석 결과 보기"):
             st.markdown(st.session_state['last_insights'])
+
+    ## 월간리포트 생성
+    st.markdown("---")
+    st.markdown("### 📋 월간 리포트")
+
+    if st.button("📄 리포트 생성"):
+        insights = st.session_state.get('last_insights', None)
+        report = generate_monthly_report(df_filtered, insights)
+
+        st.markdown(report)
+
+        st.download_button(
+            label="📥 리포트 다운로드 (Markdown)",
+            data=report,
+            file_name=f"expense_report_{pd.Timestamp.now().strftime('%Y%m%d')}.md",
+            mime="text/markdown"
+        )
