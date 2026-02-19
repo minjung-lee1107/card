@@ -624,9 +624,15 @@ if st.session_state.get("df") is not None and 'df' in dir():
     with col_left:
         st.markdown("### 🥧 지출 구성")
 
-        tab_cat, tab_pay = st.tabs(["카테고리", "할부여부"])
+        donut_view = st.segmented_control(
+            "도넛 보기",
+            ["카테고리", "일시불/할부"],
+            default=st.session_state.get("donut_view", "카테고리"),
+            key="donut_view",
+            label_visibility="collapsed"
+        )
 
-        with tab_cat:
+        if donut_view == "카테고리":
             if "category" in df_filtered.columns:
                 category_sum = (
                     df_filtered.groupby("category")["amount"]
@@ -645,18 +651,18 @@ if st.session_state.get("df") is not None and 'df' in dir():
                     textposition="inside",
                     textinfo="percent+label"
                 )
-                st.plotly_chart(fig_pie, use_container_width=True)
+                st.plotly_chart(fig_pie, use_container_width=True, key="donut_chart_category")
             else:
                 st.info("category 컬럼이 없어요.")
 
-
-        with tab_pay:
+        else:
             df_i = df_filtered.copy()
 
             metric_mode = st.radio(
                 "기준 선택",
                 ["금액", "건수"],
-                horizontal=True
+                horizontal=True,
+                key="donut_metric_mode"
             )
 
             ### 할부/일시불 분류
@@ -687,7 +693,7 @@ if st.session_state.get("df") is not None and 'df' in dir():
             )
             fig_pay.update_traces(textposition="inside", textinfo="percent+label")
 
-            st.plotly_chart(fig_pay, use_container_width=True)
+            st.plotly_chart(fig_pay, use_container_width=True, key="donut_chart_pay")
     
 
     ## 바 차트
@@ -726,9 +732,14 @@ if st.session_state.get("df") is not None and 'df' in dir():
     
 
     ## 라인차트
-    tab_month, tab_week, tab_weekday, tab_day = st.tabs(
-        ["월별", "주별", "요일별", "일별"]
+    trend_view = st.segmented_control(
+        "추이 보기",
+        ["월별", "주별", "요일별", "일별"],
+        default=st.session_state.get("trend_view", "월별"),
+        key="trend_view",
+        label_visibility="collapsed"
     )
+    
 
     def draw_line(df, x_col, x_title):
         summary = df.groupby(x_col)['amount'].sum().reset_index()
@@ -737,11 +748,11 @@ if st.session_state.get("df") is not None and 'df' in dir():
             xaxis_title=x_title,
             yaxis_title="지출 금액 (원)"
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key=f"trend_chart_{trend_view}")
 
 
     ### 월별
-    with tab_month:
+    if trend_view == "월별":
         st.markdown("### 📈 월별 지출 추이")
 
         df_m = df_filtered.copy()
@@ -750,7 +761,7 @@ if st.session_state.get("df") is not None and 'df' in dir():
         draw_line(df_m, 'year_month', '월')
 
     ### 주별 (1~5주)
-    with tab_week:
+    elif trend_view == "주별":
         st.markdown("### 📈 주별 지출 추이")
 
         df_w = df_filtered.copy()
@@ -761,7 +772,7 @@ if st.session_state.get("df") is not None and 'df' in dir():
         draw_line(df_w, 'week_label', '주')
 
     ### 일별 (1~31일)
-    with tab_day:
+    elif trend_view == "일별":
         st.markdown("### 📊 일별 지출 막대그래프 ")
 
         df_d = df_filtered.copy()
@@ -772,7 +783,7 @@ if st.session_state.get("df") is not None and 'df' in dir():
 
         df_d["ym"] = df_d["date"].dt.to_period("M").astype(str)
         ym_list = sorted(df_d["ym"].unique())
-        selected_ym = st.selectbox("월 선택", ym_list, index=len(ym_list) - 1)
+        selected_ym = st.selectbox("월 선택", ym_list, index=len(ym_list) - 1, key="daily_selected_ym")
 
         df_m = df_d[df_d["ym"] == selected_ym].copy()
 
@@ -856,10 +867,10 @@ if st.session_state.get("df") is not None and 'df' in dir():
             legend_title_text=""
         )
 
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key=f"trend_chart_{trend_view}")
 
     ### 요일별 (일~토)
-    with tab_weekday:
+    elif trend_view == "요일별":
         st.markdown("### 🔥 요일별 지출 히트맵")
 
         order = ["일", "월", "화", "수", "목", "금", "토"]
@@ -916,7 +927,7 @@ if st.session_state.get("df") is not None and 'df' in dir():
 
         fig.update_layout(margin=dict(l=10, r=10, t=40, b=10))
 
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key=f"trend_chart_{trend_view}")
 
 
     ### 슬로프 차트
@@ -1181,10 +1192,10 @@ def generate_monthly_report(df, insights=None):
     total_spend = df["amount"].sum()
     max_spend = df["amount"].max()
     count_tx = df["amount"].count()
-
+    
     if "date" in df.columns:
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
-
+        
         monthly_avg_total = (
             df.dropna(subset=["date"])
             .assign(month=df["date"].dt.to_period("M"))
@@ -1369,7 +1380,8 @@ if uploaded_file is not None:
         report = generate_monthly_report(df_filtered, insights)
 
         st.markdown(report)
-
+        
+        st.markdown("---")
         st.download_button(
             label="📥 리포트 다운로드 (Markdown)",
             data=report,
