@@ -43,6 +43,7 @@ with st.sidebar:
 
 # 파일 업로드 처리
 if uploaded_file is not None:
+
     ## 새 파일이 업로드되었을 때만 처리
     if (not st.session_state.file_uploaded) or (st.session_state.get('file_name') != uploaded_file.name):
         try:
@@ -56,7 +57,7 @@ if uploaded_file is not None:
                 df_raw = pd.read_excel(uploaded_file)
 
             ### Session State에 저장 (원본)
-            st.session_state.df = df_raw
+            st.session_state.df_raw = df_raw
             st.session_state.file_uploaded = True
             st.session_state.file_name = uploaded_file.name
 
@@ -68,14 +69,24 @@ if uploaded_file is not None:
 
 api_key = st.secrets.get("OPENAI_API_KEY")
 
-if st.session_state.df is not None:
+
+if uploaded_file is not None and st.session_state.get("df_raw") is not None:
     try:
+        drop_non_standard = st.toggle("표준 컬럼 외 컬럼 삭제", value=True)
+        ## 토글 값 바뀔 때마다 df_processed 비우기
+        prev = st.session_state.get("drop_non_standard_prev")
+        if prev is None or prev != drop_non_standard:
+            st.session_state.df_processed = None
+            st.session_state.prep_report = None
+        st.session_state["drop_non_standard_prev"] = drop_non_standard
+
         ## 전처리 1회만 실행
         if st.session_state.df_processed is None:
             df, prep_report = preprocess_any_expense_df(
-            st.session_state.df,
+            st.session_state.df_raw,
             api_key=api_key,
-            use_ai=use_ai
+            use_ai=use_ai,
+            drop_non_standard=drop_non_standard
         )
 
             ## 전처리 실패 안내
@@ -105,9 +116,27 @@ if st.session_state.df is not None:
 
             st.success(f"✅ 전처리 완료! ({prep_report['rows_final']}건)")
 
+            type_report = prep_report.get("type_coerce_report", {})
+            dropped_total = type_report.get("rows_dropped_types_total", 0)
+
+            if dropped_total > 0:
+                st.warning(
+                    f"⚠️ 날짜/금액을 읽을 수 없는 데이터 {dropped_total}건이 제외됐어요. "
+                    f"(전: {type_report.get('rows_before_types')} → "
+                    f"후: {type_report.get('rows_after_types')})"
+                )
+                st.caption(
+                    "예: 날짜 형식이 다르거나, 금액에 문자/기호가 섞여 있는 경우입니다."
+                )
+
+                st.caption(
+                    f"- 날짜 확인 불가: {type_report.get('date_parse_failed', 0)}건 / "
+                    f"금액 확인 불가: {type_report.get('amount_parse_failed', 0)}건"
+                )
+
         ## 이미 전처리 했으면 저장된 것 사용
         df = st.session_state.df_processed
-        prep_report = st.session_state.prep_report
+        prep_report = st.session_state.get("prep_report", {})
 
 
         col_map, col_drop = st.columns(2)
@@ -118,7 +147,7 @@ if st.session_state.df is not None:
 
         with col_drop:
             with st.expander("🗑️ 삭제된 컬럼"):
-                st.write(prep_report["dropped_columns"])
+                st.write(prep_report.get("dropped_columns", []))
 
         with st.expander("📋 전처리된 데이터 미리보기"):
             st.dataframe(df.head(10))
