@@ -4,6 +4,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from openai import OpenAI
+import random
 import re
 import json
 import difflib
@@ -45,13 +46,13 @@ with st.sidebar:
         st.header("📥 샘플 데이터가 필요하신가요?")
 
         @st.cache_data
-        def get_sample_csv_bytes() -> bytes:
-            df = make_sample_expense_data()
+        def get_sample_csv_bytes(seed) -> bytes:
+            df = make_sample_expense_data(seed=seed)
             return df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
 
         st.download_button(
             label="샘플 CSV 다운로드",
-            data=get_sample_csv_bytes(),
+            data=get_sample_csv_bytes(random.randint(0, 100000)),
             file_name="sample_expense_data.csv",
             mime="text/csv"
         )
