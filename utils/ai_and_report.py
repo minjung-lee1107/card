@@ -93,7 +93,7 @@ def get_ai_insights(summary_data, api_key=None):
 - 모든 인사이트에는 반드시 근거 수치(비중 %, 월평균 금액, 거래 건수 등)를 포함하세요.
 - 단순 요약이 아닌, 해석과 의미가 포함된 인사이트만 제시하세요.
 - 반드시 아래 분석 요청에 작성한 순서대로 작성해주세요.
-- 절약 금액은 반드시 100원 단위로 반올림하여 표시하세요.
+- 월 절약액은 반드시 100원 단위로 반올림하여 표시하세요.
 - 예산 조정 우선순위이기 때문에 후순위는 아예 제안하지 말라는 뜻은 아닙니다. 필요할 경우는 제시하세요. 
 - 권장 예산 조정 우선순위: (1) 변동비 → (2) 반복 지출(구독) → (3) 고정비(주거/통신/보험은 큰 변경 제안 금지, 대신 절감 아이디어 제시) 
 
@@ -219,6 +219,9 @@ def generate_monthly_report(df, insights=None):
         report += "\n---\n\n## 🧾 고정비 리스트\n\n"
 
         fixed_col = "is_fixed"
+
+        if fixed_col not in df.columns:
+            df[fixed_col] = False
 
         fixed_df = df[df[fixed_col] == True].copy()
 
