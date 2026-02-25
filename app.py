@@ -57,8 +57,9 @@ with st.sidebar:
             mime="text/csv"
         )
 
-with st.sidebar:
-    use_ai = st.toggle("AI 자동 보정 사용", value=False)
+        use_ai = st.toggle("AI 자동 보정 사용", value=False)
+    else:
+        use_ai = False
 
 # 파일 업로드 처리
 if uploaded_file is not None:
