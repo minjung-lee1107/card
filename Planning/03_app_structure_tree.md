@@ -183,7 +183,8 @@ app.py
     │
     ├─ "📄 리포트 생성" 버튼
     │   ├─ generate_monthly_report 호출
-    │   └─ st.markdown 출력
+    │   ├─ st.markdown 출력   
+    │   └─ st.txt 출력
     │
     └─ 다운로드 버튼
         ├─ 파일명: expense_report_YYYYMMDD.md
