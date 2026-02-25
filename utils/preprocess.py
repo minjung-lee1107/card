@@ -22,6 +22,7 @@ RULES = {
 }
 CATEGORIES = ["식비","교통","쇼핑","주거/통신","구독","의료/건강","문화/여가","금융/보험","기타"]
 
+
 ## 컬럼명 정규화
 def _norm_col(x: str) -> str:
     """컬럼명 비교용 정규화: 소문자, 공백/특수문자 제거"""
@@ -189,6 +190,32 @@ SYNONYMS = {
         "installment_months","할부개월","할부개월수","할부기간","할부개월수","개월","할부월","할부"
     ],
 }
+
+# 고정비 룰
+FIXED_RULES = [
+    "월세","관리비","통신","인터넷","kt","skt","유플러스",
+    "보험","손보","화재","생명",
+    "넷플릭스","netflix","유튜브","youtube","멜론","spotify","애플","google one",
+    "정기","정기결제","자동이체"
+]
+
+def build_is_fixed(df: pd.DataFrame) -> pd.Series:
+    parts = []
+    for c in ["description", "sub_category", "payment_method"]:
+        if c in df.columns:
+            parts.append(df[c].fillna("").astype(str))
+
+    if not parts:
+        return pd.Series([False] * len(df), index=df.index)
+
+    text = parts[0]
+    for p in parts[1:]:
+        text = text + " " + p
+
+    text = text.str.lower()
+    pat = "|".join([re.escape(k.lower()) for k in FIXED_RULES])
+
+    return text.str.contains(pat, regex=True).fillna(False)
 
 def auto_map_columns(df: pd.DataFrame, drop_non_standard: bool = True):
     """
@@ -374,6 +401,11 @@ def preprocess_any_expense_df(df_raw, api_key=None, use_ai=False, drop_non_stand
 
     df2, type_report = coerce_types(df1)
     report["type_coerce_report"] = type_report
+
+    if "is_fixed" not in df2.columns:
+        df2["is_fixed"] = build_is_fixed(df2)
+    else:
+        df2["is_fixed"] = df2["is_fixed"].fillna(False)
 
     ### 필수 컬럼 존재 확인
     missing_required = [c for c in ["date","amount"] if c not in df2.columns]
