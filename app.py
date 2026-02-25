@@ -24,6 +24,25 @@ st.set_page_config(
 
 st.title("💰 개인 지출 분석")
 
+if st.button("OpenAI 연결 테스트"):
+    api_key = st.secrets.get("OPENAI_API_KEY")
+
+    if not api_key:
+        st.error("❌ API Key 없음")
+    else:
+        client = OpenAI(api_key=api_key)
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": "테스트"}],
+                max_tokens=10,
+            )
+            st.success("✅ OpenAI 연결 성공!")
+            st.write(response.choices[0].message.content)
+        except Exception as e:
+            st.error("❌ OpenAI 연결 실패")
+            st.error(str(e))
+
 # Session State 초기화
 if 'df' not in st.session_state:
     st.session_state.df = None
