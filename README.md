@@ -26,7 +26,7 @@ Streamlit과 OpenAI API를 활용한 자동 지출 분류 및 소비 패턴 분�
 
 
 ```text
-개인지출분석/
+📂 개인지출분석/
 ├── app.py                      # 메인 Streamlit 앱
 ├── sample_data_code.py         # sample data 생성 코드
 ├── requirements.txt            # 의존성 목록
