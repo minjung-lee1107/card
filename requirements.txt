@@ -5,3 +5,4 @@ plotly
 openai
 openpyxl
 altair==4.2.2
+xlrd
