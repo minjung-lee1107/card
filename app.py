@@ -56,8 +56,9 @@ with st.sidebar:
             file_name="sample_expense_data.csv",
             mime="text/csv"
         )
-
-        use_ai = st.toggle("AI 자동 보정 사용", value=False)
+        
+    if uploaded_file is None:
+        use_ai = st.toggle("카테고리 AI 자동 보정 사용", value=False)
     else:
         use_ai = False
 
