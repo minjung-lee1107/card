@@ -30,7 +30,6 @@ Streamlit과 OpenAI API를 활용한 자동 지출 분류 및 소비 패턴 분�
 ```text
 📂 개인지출분석/
 ├── app.py                      # 메인 Streamlit 앱
-├── sample_data_code.py         # sample data 생성 코드
 ├── requirements.txt            # 의존성 목록
 ├── README.md                   # 프로젝트 설명
 ├── .gitignore                  # Git 제외 파일
@@ -44,6 +43,7 @@ Streamlit과 OpenAI API를 활용한 자동 지출 분류 및 소비 패턴 분�
 └── utils/
     ├── __init__.py             # 패키지 초기화 파일
     ├── preprocess.py           # 데이터 처리 함수
+    ├── sample_data_code.py     # sample data 생성 코드
     └── ai_and_report.py        # AI 분석, 월간 리포트 함수
 ```
 
