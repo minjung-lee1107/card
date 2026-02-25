@@ -43,6 +43,13 @@ with st.sidebar:
     uploaded_file = st.file_uploader("파일 업로드", type=['csv', 'xlsx', 'xls'])
 
     if uploaded_file is None:
+        use_ai = st.toggle("카테고리 AI 자동 보정 사용", value=False)
+    else:
+        use_ai = False
+    
+    st.markdown("---")
+
+    if uploaded_file is None:
         st.header("📥 샘플 데이터가 필요하신가요?")
 
         @st.cache_data
@@ -56,11 +63,6 @@ with st.sidebar:
             file_name="sample_expense_data.csv",
             mime="text/csv"
         )
-        
-    if uploaded_file is None:
-        use_ai = st.toggle("카테고리 AI 자동 보정 사용", value=False)
-    else:
-        use_ai = False
 
 # 파일 업로드 처리
 if uploaded_file is not None:
