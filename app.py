@@ -226,6 +226,9 @@ else:
             A. 토글을 꺼도 표시되는 컬럼은 실제로 삭제된 것이 아니라, 표준 컬럼과 매칭되지 않은 컬럼을 안내용으로 보여주는 목록일 뿐입니다.  
             데이터 미리보기에서 삭제되지 않은 것을 확인할 수 있습니다.
 
+            **Q. 월간 리포트를 다운로드 할 때 확장자가 무엇인가요?**  
+            A. 마크다운(.md)과 텍스트(.txt) 중 선택 가능합니다!
+
             """
         )
 
@@ -793,11 +796,18 @@ if uploaded_file is not None:
         report = generate_monthly_report(df_filtered, insights)
 
         st.markdown(report)
-        
         st.markdown("---")
+
         st.download_button(
-            label="📥 리포트 다운로드 (Markdown)",
+            label="📥 Markdown 다운로드 (.md)",
             data=report,
             file_name=f"expense_report_{pd.Timestamp.now().strftime('%Y%m%d')}.md",
             mime="text/markdown"
+        )
+
+        st.download_button(
+            label="📥 Text 다운로드 (.txt)",
+            data=report,
+            file_name=f"expense_report_{pd.Timestamp.now().strftime('%Y%m%d')}.txt",
+            mime="text/plain"
         )
