@@ -72,7 +72,7 @@ project_root/
 ├─ app.py
 │  ├─ import
 │  │  ├─ streamlit as st
-│  │  ├─ pandas / numpy
+│  │  ├─ pandas / numpy / random
 │  │  ├─ plotly.express / plotly.graph_objects
 │  │  ├─ re / json / difflib
 │  │  ├─ OpenAI
