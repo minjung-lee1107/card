@@ -226,7 +226,7 @@ def generate_monthly_report(df, insights=None):
         fixed_df = df[df[fixed_col] == True].copy()
 
         if fixed_df.empty:
-            report += "고정비로 표시된 내역이 없어요. (`is_fixed`가 True인 행)\n"
+            report += "고정비로 표시된 내역이 없어요.\n"
         else:
             fixed_df["date"] = pd.to_datetime(fixed_df["date"], errors="coerce")
 
@@ -244,7 +244,7 @@ def generate_monthly_report(df, insights=None):
             fixed_total = fixed_df["amount"].sum()
             report += f"- 고정비 총합: **{fixed_total:,.0f}원**\n\n"
 
-            report += "| 카테고리 | 항목 | 월 합계 | 발생 횟수 | 1회 평균 금액 |\n"
+            report += "| 카테고리 | 항목 | 총 합계 | 발생 횟수 | 1회 평균 금액 |\n"
             report += "|----------|------|---------|-----------|----------------|\n"
 
             for _, row in fixed_summary.iterrows():
