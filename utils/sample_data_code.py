@@ -112,7 +112,7 @@ def make_sample_expense_data(
     num_rows: int = NUM_ROWS,
     start_date: datetime = START_DATE,
     end_date: datetime = END_DATE,
-    seed: Optional[int] = 42,
+    seed: Optional[int] = None,
 ) -> pd.DataFrame:
     """Streamlit에서 import해서 쓰기 위한 샘플 데이터 생성 함수"""
     if seed is not None:
