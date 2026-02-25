@@ -15,11 +15,13 @@ Streamlit과 OpenAI API를 활용한 자동 지출 분류 및 소비 패턴 분�
 
 ## Tech Stack
 
-- Python
-- Streamlit
-- Pandas / Numpy
-- Plotly
-- OpenAI API
+| Category | Technology |
+|----------|------------|
+| Language | Python 3.11 |
+| Framework | Streamlit |
+| Data | Pandas, NumPy |
+| Visualization | Plotly, Altair 4.2.2 |
+| AI | OpenAI API |
 
 
 ## Project Structure
