@@ -9,6 +9,7 @@ import json
 import difflib
 
 from utils.preprocess import preprocess_any_expense_df
+from utils.sample_data_code import make_sample_expense_data
 from utils.ai_and_report import generate_expense_summary, get_ai_insights, generate_monthly_report
 
 # API 키 설정
@@ -39,6 +40,21 @@ if 'file_uploaded' not in st.session_state:
 with st.sidebar:
     st.header("📁 데이터 업로드")
     uploaded_file = st.file_uploader("파일 업로드", type=['csv', 'xlsx', 'xls'])
+
+    if uploaded_file is None:
+        st.header("📥 샘플 데이터가 필요하신가요?")
+
+        @st.cache_data
+        def get_sample_csv_bytes() -> bytes:
+            df = make_sample_expense_data()
+            return df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
+
+        st.download_button(
+            label="샘플 CSV 다운로드",
+            data=get_sample_csv_bytes(),
+            file_name="sample_expense_data.csv",
+            mime="text/csv"
+        )
 
 with st.sidebar:
     use_ai = st.toggle("AI 자동 보정 사용", value=False)
@@ -160,7 +176,7 @@ if uploaded_file is not None and st.session_state.get("df_raw") is not None:
 
 else:
     st.info("👈 왼쪽 사이드바에서 파일을 업로드해주세요.")
- 
+
     st.markdown(" ")
     st.markdown(" ")
     st.markdown(" ")
