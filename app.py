@@ -422,18 +422,18 @@ if st.session_state.df_processed is not None:
                 horizontal=True,
                 key="donut_metric_mode"
             )
-
-            if df_i.empty:
-                st.warning("데이터가 없습니다.")
-                st.stop()
-
+            
             ### 할부/일시불 분류
             if "installment_months" in df_i.columns:
                 months = pd.to_numeric(df_i["installment_months"], errors="coerce").fillna(0)
                 df_i["pay_type"] = (months > 0).map({True: "할부", False: "일시불"})
+
             elif "installment_type" in df_i.columns:
                 s = df_i["installment_type"].fillna("").astype(str).str.strip()
-                df_i["pay_type"] = (~s.isin(["일시불", "0", "0개월", "일괄"])).map({True: "할부", False: "일시불"})
+                df_i["pay_type"] = (
+                    ~s.isin(["일시불", "0", "0개월", "일괄"])
+                ).map({True: "할부", False: "일시불"})
+
             else:
                 st.info("할부 관련 컬럼이 없어요.")
                 st.stop()
@@ -446,11 +446,6 @@ if st.session_state.df_processed is not None:
                 pay_stat = df_i.groupby("pay_type").size().reset_index(name="count")
                 value_col = "count"
 
-            ### 집계 결과가 비었으면(=일시불/할부 둘 다 없음) 안내
-            if pay_stat.empty:
-                st.warning("데이터가 없습니다.")
-                st.stop()
-
             fig_pay = px.pie(
                 pay_stat,
                 values=value_col,
@@ -458,10 +453,10 @@ if st.session_state.df_processed is not None:
                 hole=0.4,
                 color_discrete_map={"일시불": "#4C78A8", "할부": "#43AECF"}
             )
+
             fig_pay.update_traces(textposition="inside", textinfo="percent+label")
 
             st.plotly_chart(fig_pay, use_container_width=True, key="donut_chart_pay")
-    
 
     ## 바 차트
     with col_right:
