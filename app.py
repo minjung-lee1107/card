@@ -445,13 +445,7 @@ if st.session_state.df_processed is not None:
             existing_types = set(pay_stat["pay_type"])
 
             if "일시불" not in existing_types and "할부" not in existing_types:
-                st.warning("일시불과 할부 데이터가 모두 없습니다.")
-                st.stop()
-            elif "일시불" not in existing_types:
-                st.warning("일시불 데이터가 없습니다.")
-                st.stop()
-            elif "할부" not in existing_types:
-                st.warning("할부 데이터가 없습니다.")
+                st.warning("데이터가 없습니다.")
                 st.stop()
 
             fig_pay = px.pie(
