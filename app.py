@@ -148,15 +148,6 @@ if uploaded_file is not None and st.session_state.get("df_raw") is not None:
 
             st.success(f"✅ 전처리 완료! ({prep_report['rows_final']}건)")
 
-            with st.expander("🤖 AI 카테고리 동작 확인"):
-                st.write({
-                    "AI 사용 토글(use_ai)": use_ai,
-                    "AI 키 존재": bool(api_key),
-                    "리포트(ai_category_enabled)": prep_report.get("ai_category_enabled"),
-                    "AI 대상 행 수": prep_report.get("ai_category_target_rows"),
-                    "AI 대상 유니크 description 수": prep_report.get("ai_category_target_unique_desc"),
-                })
-
             type_report = prep_report.get("type_coerce_report", {})
             dropped_total = type_report.get("rows_dropped_types_total", 0)
 
@@ -834,9 +825,11 @@ if st.session_state.df_processed is not None:
     st.markdown("### 📋 월간 리포트")
 
     if st.button("📄 리포트 생성"):
-        insights = st.session_state.get('last_insights', None)
-        report = generate_monthly_report(df_filtered, insights)
+        insights = st.session_state.get("last_insights", None)
+        st.session_state["monthly_report"] = generate_monthly_report(df_filtered, insights)
 
+    report = st.session_state.get("monthly_report", None)
+    if report:
         st.markdown(report)
         st.markdown("---")
 
