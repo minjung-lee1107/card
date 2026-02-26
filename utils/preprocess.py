@@ -431,6 +431,14 @@ def preprocess_any_expense_df(df_raw, api_key=None, use_ai=False, drop_non_stand
                 use_ai=use_ai,
                 desc_col="description"
             )
+
+            report["ai_category_enabled"] = bool(use_ai and api_key)
+            report["ai_category_target_rows"] = int(need_cat.sum())
+            report["ai_category_target_unique_desc"] = int(
+                df2.loc[need_cat, "description"].dropna().astype(str).str.strip().nunique()
+            ) if "description" in df2.columns else 0
+
+
             df2.loc[need_cat, "category"] = tmp.loc[need_cat, "category"]
 
     ### category 값 표준화

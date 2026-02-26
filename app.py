@@ -142,6 +142,15 @@ if uploaded_file is not None and st.session_state.get("df_raw") is not None:
 
             st.success(f"✅ 전처리 완료! ({prep_report['rows_final']}건)")
 
+            with st.expander("🤖 AI 카테고리 동작 확인"):
+                st.write({
+                    "AI 사용 토글(use_ai)": use_ai,
+                    "AI 키 존재": bool(api_key),
+                    "리포트(ai_category_enabled)": prep_report.get("ai_category_enabled"),
+                    "AI 대상 행 수": prep_report.get("ai_category_target_rows"),
+                    "AI 대상 유니크 description 수": prep_report.get("ai_category_target_unique_desc"),
+                })
+
             type_report = prep_report.get("type_coerce_report", {})
             dropped_total = type_report.get("rows_dropped_types_total", 0)
 
