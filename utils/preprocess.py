@@ -339,15 +339,35 @@ def coerce_types(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict]:
         itype = row.get("installment_type", pd.NA)
         months = row.get("installment_months", pd.NA)
 
-        ### installment_type에 숫자가 있는 경우
-        if not pd.isna(itype):
-            s = str(itype).strip()
-            if s.isdigit():
-                m = int(s)
+        if not pd.isna(months):
+            try:
+                m = int(str(months).strip())
                 if m <= 1:
                     return "일시불", pd.NA
-                else:
-                    return "할부", m
+                return "할부", m
+            except ValueError:
+                pass
+
+        if pd.isna(itype):
+            return pd.NA, pd.NA
+
+        s = str(itype).strip()
+
+        if "일시불" in s:
+            return "일시불", pd.NA
+
+        mobj = re.search(r"(\d+)", s)
+        if mobj:
+            m = int(mobj.group(1))
+            if m <= 1:
+                return "일시불", pd.NA
+            return "할부", m
+
+        if "할부" in s:
+            return "할부", pd.NA
+
+        return pd.NA, pd.NA
+
 
         ### 기존 텍스트 기반 판단
         s_low = str(itype).lower() if not pd.isna(itype) else ""

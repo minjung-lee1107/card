@@ -422,7 +422,7 @@ if st.session_state.df_processed is not None:
                 horizontal=True,
                 key="donut_metric_mode"
             )
-            
+
             ### 할부/일시불 분류
             if "installment_months" in df_i.columns:
                 months = pd.to_numeric(df_i["installment_months"], errors="coerce").fillna(0)
@@ -453,8 +453,10 @@ if st.session_state.df_processed is not None:
                 hole=0.4,
                 color_discrete_map={"일시불": "#4C78A8", "할부": "#43AECF"}
             )
-
-            fig_pay.update_traces(textposition="inside", textinfo="percent+label")
+            if metric_mode == "건수":
+                fig_pay.update_traces(textinfo="label+value")  # ← 핵심
+            else:
+                fig_pay.update_traces(textinfo="label+percent")
 
             st.plotly_chart(fig_pay, use_container_width=True, key="donut_chart_pay")
 
