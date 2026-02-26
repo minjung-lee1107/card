@@ -42,10 +42,15 @@ with st.sidebar:
     st.header("📁 데이터 업로드")
     uploaded_file = st.file_uploader("파일 업로드", type=['csv', 'xlsx', 'xls'])
 
+    # 업로드 전 선택값을 세션에 저장
+    if "use_ai_pref" not in st.session_state:
+        st.session_state.use_ai_pref = False
+
     if uploaded_file is None:
-        use_ai = st.toggle("카테고리 AI 자동 보정 사용", value=False)
-    else:
-        use_ai = False
+        st.session_state.use_ai_pref = st.toggle(
+            "카테고리 AI 자동 보정 사용",
+            value=st.session_state.use_ai_pref
+        )
     
     st.markdown("---")
 
@@ -96,6 +101,7 @@ api_key = st.secrets.get("OPENAI_API_KEY")
 if uploaded_file is not None and st.session_state.get("df_raw") is not None:
     try:
         drop_non_standard = st.toggle("표준 컬럼 외 컬럼 삭제", value=True)
+        use_ai = bool(st.session_state.get("use_ai_pref", False))
         ## 전처리 트리거(파일+옵션) 고정
         file_sig = (uploaded_file.name, uploaded_file.size)
         proc_sig = (file_sig, drop_non_standard, use_ai)
