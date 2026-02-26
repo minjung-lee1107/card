@@ -442,9 +442,14 @@ if st.session_state.df_processed is not None:
                 pay_stat = df_i.groupby("pay_type").size().reset_index(name="count")
                 value_col = "count"
 
-            existing_types = set(pay_stat["pay_type"])
+            pay_stat = (
+                pay_stat.set_index("pay_type")
+                        .reindex(["일시불", "할부"], fill_value=0)
+                        .reset_index()
+            )
 
-            if "일시불" not in existing_types and "할부" not in existing_types:
+            ### 둘 다 0일 때만 "데이터가 없습니다" 표시
+            if pay_stat[value_col].sum() == 0:
                 st.warning("데이터가 없습니다.")
                 st.stop()
 
