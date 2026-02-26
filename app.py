@@ -96,12 +96,15 @@ api_key = st.secrets.get("OPENAI_API_KEY")
 if uploaded_file is not None and st.session_state.get("df_raw") is not None:
     try:
         drop_non_standard = st.toggle("표준 컬럼 외 컬럼 삭제", value=True)
-        ## 토글 값 바뀔 때마다 df_processed 비우기
-        prev = st.session_state.get("drop_non_standard_prev")
-        if prev is None or prev != drop_non_standard:
+        ## 전처리 트리거(파일+옵션) 고정
+        file_sig = (uploaded_file.name, uploaded_file.size)
+        proc_sig = (file_sig, drop_non_standard, use_ai)
+
+        ## proc_sig가 바뀐 경우에만 전처리 다시 수행
+        if st.session_state.get("proc_sig") != proc_sig:
             st.session_state.df_processed = None
             st.session_state.prep_report = None
-        st.session_state["drop_non_standard_prev"] = drop_non_standard
+            st.session_state.proc_sig = proc_sig
 
         ## 전처리 1회만 실행
         if st.session_state.df_processed is None:
@@ -790,13 +793,16 @@ if st.session_state.df_processed is not None:
 
 
 # Streamlit UI에서 사용
-if uploaded_file is not None:
+if st.session_state.df_processed is not None:
+    df = st.session_state.df_processed
+    df_filtered = df.copy()
 
     st.markdown("---")
     st.markdown("### 🤖 AI 분석 인사이트")
 
     if st.button("🔍 AI 분석 시작", type="primary"):
         with st.spinner("AI가 지출 패턴을 분석하고 있습니다..."):
+            df = st.session_state.df_processed
             summary = generate_expense_summary(df_filtered)
             insights = get_ai_insights(summary, api_key=st.secrets.get("OPENAI_API_KEY"))
 
