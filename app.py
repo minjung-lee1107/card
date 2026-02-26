@@ -423,6 +423,10 @@ if st.session_state.df_processed is not None:
                 key="donut_metric_mode"
             )
 
+            if df_i.empty:
+                st.warning("데이터가 없습니다.")
+                st.stop()
+
             ### 할부/일시불 분류
             if "installment_months" in df_i.columns:
                 months = pd.to_numeric(df_i["installment_months"], errors="coerce").fillna(0)
@@ -442,14 +446,8 @@ if st.session_state.df_processed is not None:
                 pay_stat = df_i.groupby("pay_type").size().reset_index(name="count")
                 value_col = "count"
 
-            pay_stat = (
-                pay_stat.set_index("pay_type")
-                        .reindex(["일시불", "할부"], fill_value=0)
-                        .reset_index()
-            )
-
-            ### 둘 다 0일 때만 "데이터가 없습니다" 표시
-            if pay_stat[value_col].sum() == 0:
+            ### 집계 결과가 비었으면(=일시불/할부 둘 다 없음) 안내
+            if pay_stat.empty:
                 st.warning("데이터가 없습니다.")
                 st.stop()
 
