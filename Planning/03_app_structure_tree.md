@@ -24,7 +24,7 @@ utils/
 │  │
 │  ├─ 🗂️ 컬럼 자동 매핑
 │  │  ├─ STANDARD_COLS       (표준 스키마 정의)
-│  │  ├─ REQUIRED_COLS       (필수 컬럼 정의)
+│  │  ├─ REQUIRED_COLS       (필수 컬럼 정의: date/amount)
 │  │  ├─ SYNONYMS            (동의어 사전)
 │  │  └─ auto_map_columns()  (사전 매핑 + difflib 보완 + 옵션에 따라 컬럼 정리)
 │  │
@@ -39,9 +39,10 @@ utils/
 │     └─ preprocess_any_expense_df()
 │        ├─ auto_map_columns()
 │        ├─ coerce_types()
-│        ├─ 필수 컬럼 검사 (date/amount/description)
+│        ├─ 필수 컬럼 검사 (date/amount)
 │        ├─ category 보정
-│        │  └─ (없거나 비면) build_category()로 생성
+│        │  ├─ (없거나 비면) description 있으면 build_category()로 생성
+│        │  └─ (없거나 비면) description 없으면 "기타"로 채움
 │        ├─ category 표준화 (목록 외 → "기타")
 │        ├─ 파생 컬럼 생성 (month, year_month 등)
 │        ├─ 컬럼 정렬
@@ -68,6 +69,13 @@ utils/
 │        ├─ (선택) AI 인사이트 포함
 │        └─ return: Markdown 문자열
 │
+├─ sample_data_code.py
+│  ├─ import / 상수 / 룰 정의 (CATEGORY_RULES, MERCHANT_RULES ...)
+│  ├─ 유틸: random_date(), random_amount(), get_merchant()
+│  ├─ make_sample_expense_data()  (샘플 DataFrame 생성)
+│  ├─ save_sample_csv()           (CSV 저장)
+│  └─ if __name__ == "__main__":  (로컬 실행 엔트리)
+
 project_root/
 ├─ app.py
 │  ├─ import
@@ -93,11 +101,12 @@ project_root/
 │  ├─ 📂 Sidebar: 업로드/옵션
 │  │  ├─ file_uploader (csv/xlsx/xls)
 │  │  ├─ 옵션 토글
-│  │  │  ├─ "AI 자동 보정 사용"
-│  │  │  └─ "표준 컬럼 외 컬럼 삭제"
+│  │  │  └─ "카테고리 AI 자동 보정 사용" (업로드 전 노출)
 │  │  └─ sample data 다운로드 (csv)
 │  │
 │  ├─ 🧾 업로드 파일 처리 & 전처리(1회)
+│  │  ├─ (업로드 후) 전처리 옵션 토글
+│  │  │  └─ "표준 컬럼 외 컬럼 삭제" (drop_non_standard)
 │  │  ├─ 새 파일 감지 (파일명 비교)
 │  │  ├─ 파일 로드
 │  │  │  ├─ csv: utf-8 → 실패 시 cp949
@@ -158,10 +167,3 @@ project_root/
 │     └─ 다운로드 버튼
 │        ├─ file_name: expense_report_YYYYMMDD.md
 │        └─ mime: text/markdown (또는 txt 옵션)
-│
-└─ sample_data_code.py
-   ├─ import / 상수 / 룰 정의 (CATEGORY_RULES, MERCHANT_RULES ...)
-   ├─ 유틸: random_date(), random_amount(), get_merchant()
-   ├─ make_sample_expense_data()  (샘플 DataFrame 생성)
-   ├─ save_sample_csv()           (CSV 저장)
-   └─ if __name__ == "__main__":  (로컬 실행 엔트리)
