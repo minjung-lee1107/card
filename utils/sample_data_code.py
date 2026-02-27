@@ -136,7 +136,7 @@ def make_sample_expense_data(
             payment_method == "카드"
             and category in INSTALLMENT_CATEGORIES
             and amount >= INSTALLMENT_MIN_AMOUNT
-            and random.random() < 0.1
+            and random.random() < 0.3
         ):
             installment_type = "할부"
             installment_months = random.choice(INSTALLMENT_MONTHS_OPTIONS)
