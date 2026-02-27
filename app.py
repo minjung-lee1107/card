@@ -415,7 +415,6 @@ if st.session_state.df_processed is not None:
 
         else:
             df_i = df_filtered.copy()
-
             metric_mode = st.radio(
                 "기준 선택",
                 ["금액", "건수"],
@@ -424,15 +423,18 @@ if st.session_state.df_processed is not None:
             )
 
             ### 할부/일시불 분류
-            if "installment_months" in df_i.columns:
-                months = pd.to_numeric(df_i["installment_months"], errors="coerce").fillna(0)
-                df_i["pay_type"] = (months > 0).map({True: "할부", False: "일시불"})
+            use_months = (
+                "installment_months" in df_i.columns
+                and df_i["installment_months"].notna().any()
+            )
+
+            if use_months:
+                months = pd.to_numeric(df_i["installment_months"], errors="coerce")
+                df_i["pay_type"] = (months.fillna(0) > 0).map({True: "할부", False: "일시불"})
 
             elif "installment_type" in df_i.columns:
                 s = df_i["installment_type"].fillna("").astype(str).str.strip()
-                df_i["pay_type"] = (
-                    ~s.isin(["일시불", "0", "0개월", "일괄"])
-                ).map({True: "할부", False: "일시불"})
+                df_i["pay_type"] = (~s.isin(["일시불", "0", "0개월", "일괄"])).map({True: "할부", False: "일시불"})
 
             else:
                 st.info("할부 관련 컬럼이 없어요.")
