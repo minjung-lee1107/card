@@ -456,7 +456,7 @@ if st.session_state.df_processed is not None:
                 color_discrete_map={"일시불": "#4C78A8", "할부": "#43AECF"}
             )
             if metric_mode == "건수":
-                fig_pay.update_traces(textinfo="label+value")  # ← 핵심
+                fig_pay.update_traces(textinfo="label+value")
             else:
                 fig_pay.update_traces(textinfo="label+percent")
 
